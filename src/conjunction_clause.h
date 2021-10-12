@@ -26,6 +26,8 @@ public:
         this->clauses.push_back(c);
     }
 
+    std::vector<Variable> get_variables_in_clause();
+
 private:
     std::vector<Disjunction_clause> clauses;
     

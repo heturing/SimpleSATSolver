@@ -11,19 +11,12 @@
 class Variable{
 friend std::ostream& operator<<(std::ostream &os, const Variable &v);
 friend bool conflict(std::vector<std::pair<Variable, size_t>> &v);
+friend class VariableHash;
 public:
-    Variable(std::string n="", bool v=false) : name(n), value(v) {}
+    Variable(std::string n="v"+std::to_string(index)) : name(n){}
 
-    std::string get_name(){
+    std::string get_name() const{
         return this->name;
-    }
-
-    bool get_value(){
-        return this->value;
-    }
-
-    Variable operator!(){
-        return Variable(name, !value);
     }
 
     explicit operator bool() const{
@@ -31,14 +24,23 @@ public:
     }
 
     bool operator==(const Variable &v) const {return this->name == v.name;}
+    bool operator!=(const Variable &v) const {return !(*this == v);}
 
 private:
     // if name is "", then it's an invalid variable.
     std::string name;
-    bool value;
+    static size_t index;
 };
 
 std::ostream& operator<<(std::ostream &os, const Variable &v);
 bool conflict(std::vector<std::pair<Variable, size_t>> &v);
+
+class VariableHash{
+    // Compute hash based on underlying name and value.
+public:
+    size_t operator()(const Variable &v) const{
+        return std::hash<std::string>()(v.name);
+    }
+};
 
 #endif

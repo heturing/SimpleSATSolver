@@ -9,6 +9,7 @@
 #include "version.h"
 #include "benchmark_reader.h"
 #include "conjunction_clause.h"
+#include "solver.h"
 
 namespace po = boost::program_options;
 
@@ -81,7 +82,19 @@ int main(int argc, char** argv){
             std::cout << br.get_formula() << std::endl;
 
             // Create solver object
-            
+            Solver s(br.get_formula());
+
+            std::cout << "created a solver." << std::endl;
+
+            bool b = s.solve();
+            std::cout << "solved:" << b << std::endl;
+            auto model = s.get_model();
+
+            for(auto l : model){
+                std::cout << l << " ";
+            }
+            std::cout << std::endl;
+
         }
     }
 

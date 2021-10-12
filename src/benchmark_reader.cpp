@@ -44,7 +44,7 @@ Benchmark_reader::Benchmark_reader(std::string file_name){
                     // Create variables, then create a disjunction_clause.
                     Disjunction_clause dc;
                     for(auto e : v){
-                        dc.add_variable(Variable("x" + std::to_string(abs(e)), abs(e) == e));
+                        dc.add_literal(Literal(Variable("x" + std::to_string(abs(e))), abs(e) == e));
                     }
                     cnf.add_clause(dc);
 
