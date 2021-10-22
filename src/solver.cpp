@@ -1,10 +1,10 @@
 #include "solver.h"
 #include "disjunction_clause.h"
 #include "heuristic.h"
+#include "solver_exception.h"
 
-Solver::Solver(Conjunction_clause c) : clause(c), unassigned_variables(c.get_variables_in_clause()), decision_level(0){
+Solver::Solver(Conjunction_clause c, bool v) : clause(c), unassigned_variables(c.get_variables_in_clause()), decision_level(0), verbose(v) {
     // Collect all variables in c, put these variables in unassigned_variables.
-
 }
 
 void Solver::backtrack(int backtrack_level){
@@ -26,27 +26,22 @@ void Solver::backtrack(int backtrack_level){
 
 
 bool Solver::solve(){
-    // Check the satisfiability of given CNF by CDCL.
-    // If satisfiable, return true and fill the answer into model. Else, return false
+    /*
+    Check the satisfiability of the given CNF in this solver by CDCL algorithm.
+    If the CNF is satisfiable, this function returns true, and the solution is saved in assignment.
+    Otherwise, this function returns false. 
+    */
 
     while(true){
-        while(BCP()){
+        while(boolean_constraint_propagation()){
             int backtrack_level = analyze_conflict();
             if(backtrack_level < 0){
                 return false;
             }
             backtrack(backtrack_level);
-            std::cout << "After backtracking to dl:" << backtrack_level << std::endl;
-            std::cout << ig << std::endl;
-
-
         }
         bool dec = decide();
-        std::cout << ig << std::endl;
-
         if(!dec){
-            // set the answer
-
             return true;
         }
     }
@@ -66,7 +61,7 @@ bool Solver::check_conflict(){
             con_cl = cl;
         }
         if(flag){
-            std::cout << "Conflict on:" << cl << std::endl; 
+            // std::cout << "Conflict on:" << cl << std::endl; 
             // for each lit node in cl, add conflict edge from node to conflict.
             // ig.add_conflict_edge(ig.get_node_from_literal())
             for(auto lit : cl.get_literals()){
@@ -85,42 +80,50 @@ bool Solver::check_conflict(){
     return false;
 }
 
-bool Solver::BCP(){
-    // propagate current assignment
-    bool flag;
+bool Solver::boolean_constraint_propagation(){
+    /*
+    Propagate literals from each DNF in the given CNF based on current assignment.
+
+    */
+    bool new_literal_propagated;
     do{
-        flag = false;
+        new_literal_propagated = false;
+
         auto all_clauses = learned_clauses;
         auto original_clauses = clause.get_clauses();
         all_clauses.insert(all_clauses.end(), original_clauses.begin(), original_clauses.end());
-        for(auto cl : all_clauses){
-            Literal l;
+
+        for(auto clause : all_clauses){
+            Literal propagated_literal;
             try{
-                l = Disjunction_clause::propagate_clause(cl, assignment).first;
+                propagated_literal = Disjunction_clause::propagate_clause(clause, assignment);
             }
-            catch(const std::runtime_error &e){
+            catch(const PropagationException &e){
                 continue;
             }
-            flag = true;
-            std::cout << "Propagate on literal:" << l << " by clause ("  << cl << ")" << std::endl;
-            assignment.push_back({l, cl});
+            new_literal_propagated = true;
 
+            // todo : refactor 107 - 115 to a new function, assign_a_literal(Literal, Disjunction_clause)
+            assignment.push_back({propagated_literal, clause});
+
+            // remove literal from unassigned_vars
             for(auto iter = unassigned_variables.begin(); iter != unassigned_variables.end(); ++iter){
-                if(*iter == l.get_variable()){
+                if(*iter == propagated_literal.get_variable()){
                     unassigned_variables.erase(iter);
                     break;
                 }
             }
-            // for clause (a,b,c) => a, add edge b => a and c => a with label (a,b,c)
-            for(auto lit : cl.get_literals()){
-                if(lit != l){
-                    // std::cout << "Add edge:" << !lit << " " << l << std::endl;
+
+            // todo : update implication_graph. new function.
+            // for clause (a,b,c) => a, add edge !b => a and !c => a with label (a,b,c)
+            for(auto lit : clause.get_literals()){
+                if(lit != propagated_literal){
                     Node head = ig.get_node_from_literal(!lit);
-                    Node tail = Node(l, decision_level);
-                    ig.add_edge(head, tail, cl);
+                    Node tail = Node(propagated_literal, decision_level);
+                    ig.add_edge(head, tail, clause);
                 }
                 if(decision_level == 0){
-                    ig.add_edge(*(ig.root), Node(l, decision_level), cl);
+                    ig.add_edge(*(ig.root), Node(propagated_literal, decision_level), clause);
                 }
             }
             
@@ -128,7 +131,7 @@ bool Solver::BCP(){
                 return true;
             }
         }
-    }while(flag);
+    }while(new_literal_propagated);
 
 
     // return true if there is no conflict, else return false.
@@ -144,7 +147,7 @@ bool Solver::stop_criterion_met(Disjunction_clause &cl, const Node &uip){
     Return true iff cl contains the negation of the first UIP as its single literal at the current decision level.
     */
 
-    std::cout << "Testing if clause met stop criterion:" << cl << std::endl;
+    // std::cout << "Testing if clause met stop criterion:" << cl << std::endl;
 
     size_t decision_level_of_UIP = uip.get_decision_level();
     std::vector<Literal> vl;
@@ -170,7 +173,7 @@ bool Solver::stop_criterion_met(Disjunction_clause &cl, const Node &uip){
 }
 
 Literal Solver::get_last_assigned_literal(Disjunction_clause dc){
-    std::cout << "Trying to get last assignment literal of " << dc << std::endl;
+    // std::cout << "Trying to get last assignment literal of " << dc << std::endl;
     // std::cout << "Current assignment:" << std::endl;
     // for(auto p : assignment){
     //     std::cout << p.first << std::endl;
@@ -192,7 +195,7 @@ Disjunction_clause Solver::get_antecedent_clause(Literal l){
     when new literal is assigned, we also keep track the clause that leads to this assignment. (for decision node, we put an
     empty clause).
     */
-   std::cout << "Find antecedent clause for " << l << std::endl;
+//    std::cout << "Find antecedent clause for " << l << std::endl;
    auto iter = std::find_if(assignment.begin(), assignment.end(), [l](std::pair<Literal, Disjunction_clause> p) -> bool {return p.first.get_variable() == l.get_variable();});
    if(iter != assignment.end()){
        return iter->second;
@@ -230,37 +233,37 @@ int Solver::analyze_conflict(){
     Return the decision level that we should backtrack to.
     */
 
-    std::cout << "Analyzing conflict on graph:\n" << ig << std::endl;
+    // std::cout << "Analyzing conflict on graph:\n" << ig << std::endl;
 
     if(decision_level == 0){
         return -1;
     }
     Disjunction_clause current_conflict_clause = ig.get_current_conflict_clause();
 
-    std::cout << "Current conflict clause is:" << current_conflict_clause << std::endl;
+    // std::cout << "Current conflict clause is:" << current_conflict_clause << std::endl;
     
     Node uip = get_first_UIP(decision_level);
-    std::cout << "First UIP is:" << uip << std::endl;
+    // std::cout << "First UIP is:" << uip << std::endl;
 
     while(!stop_criterion_met(current_conflict_clause, uip)){
 
         Literal l = get_last_assigned_literal(current_conflict_clause);
-        std::cout << "Last assigned literal is:" << l << std::endl;
+        // std::cout << "Last assigned literal is:" << l << std::endl;
 
 
         Variable v = l.get_variable();
         Disjunction_clause antecedent = get_antecedent_clause(l);
-        std::cout << "Antecedent clause is: " << antecedent << std::endl; 
+        // std::cout << "Antecedent clause is: " << antecedent << std::endl; 
         current_conflict_clause = Disjunction_clause::resolve(current_conflict_clause, antecedent, v);
-        std::cout << "New learned clause is: " << current_conflict_clause << std::endl; 
+        // std::cout << "New learned clause is: " << current_conflict_clause << std::endl; 
 
     }
 
-    std::cout << "stop criterion met"<< std::endl;
+    // std::cout << "stop criterion met"<< std::endl;
 
     add_learned_clause(current_conflict_clause);
     int dl = get_backtrack_level(current_conflict_clause);
-    std::cout << "return to decision level " << dl << std::endl;
+    // std::cout << "return to decision level " << dl << std::endl;
 
     return dl;
 }
@@ -277,7 +280,7 @@ bool Solver::decide(){
 
     Heuristic h;
     Literal variable_chosen_by_heuristic = h.choose_decide_literal(unassigned_variables);
-    std::cout << "Decide on literal:" << variable_chosen_by_heuristic << std::endl;
+    // std::cout << "Decide on literal:" << variable_chosen_by_heuristic << std::endl;
 
     // decide a variable
     // 1. put the literal into assignment

@@ -10,24 +10,31 @@
 #include "benchmark_reader.h"
 #include "conjunction_clause.h"
 #include "solver.h"
+#include "debug.h"
 
 namespace po = boost::program_options;
 
-template<typename T> std::ostream& operator<<(std::ostream &os, const std::vector<T> &v){
-    
-    std::copy(v.begin(), v.end(), std::ostream_iterator<T>(os, " "));
-    return os;
-}
-
 std::pair<po::variables_map, po::options_description> parse_argument(int argc, char* argv[]){
     /*
-        Config the a parser on how to parse command line options.
+        Parse the command line options. Return the argument map and the option descriptor as a pair.
+
+        Usage:
+            SAT_Solver benchmark_file
+
+        Command line arguments:
+            --version => print current version.
+            --help => print help message.
+            --input-file => (positional option) specify the benchmark file to solve.
+            --dump-to-file FILE => where to output the result.
+            -v | --verbose => whether output intermediate processing detail.
     */
 
    po::options_description generic("Generic options");
    generic.add_options()
-   ("version,v", "print version string")
-   ("help", "print help message");
+   ("version", "print version string")
+   ("help", "print help message")
+   ("dump-to-file", po::value<std::string>(), "where to output the result")
+   ("verbose,v", "whether output intermediate processing detail");
 
    po::options_description hidden("Hidden options");
    hidden.add_options()
@@ -47,14 +54,19 @@ std::pair<po::variables_map, po::options_description> parse_argument(int argc, c
    return std::pair<po::variables_map, po::options_description>(vm, generic);
 }
 
+void dump_result(std::ostream &is, std::vector<Literal> model){
+    is << model << std::endl;
+}
+
 int main(int argc, char** argv){
 
     // Parse arguments
     auto p = parse_argument(argc, argv);
-    auto vm = p.first;
-    auto generic_desc = p.second;
+    po::variables_map vm = p.first;
+    po::options_description generic_desc = p.second;
 
 
+    // perform operation based on given arguments.
     if(vm.count("help")){
         std::cout << generic_desc << std::endl;
         return 0;
@@ -65,49 +77,38 @@ int main(int argc, char** argv){
         return 0;
     }
 
-    if (vm.count("input-file")){
-        std::cout << "Input files " 
-                  << ((vm["input-file"].as<std::vector<std::string>>().size() > 1) ? "are :" : "is :") 
-                  << vm["input-file"].as<std::vector<std::string>>() 
-                  << std::endl;
-
-        for(auto fn : vm["input-file"].as<std::vector<std::string>>()){
-            // For each benchmark, read its content and create solver object.
-            std::cout << fn << "\n" << std::string(80, '-') << std::endl;
-
-            // Read benchmark file into Benchmark_reader file. The CNF is available by get_formula().
-            Benchmark_reader br(fn);
-
-            // This << operator call operator(ostream&, const Conjunction_clause) bc br.get_formula() is a rvalue here.
-            std::cout << br.get_formula() << std::endl;
-
-            // Create solver object
-            Solver s(br.get_formula());
-
-            std::cout << "created a solver." << std::endl;
-
-            bool b = s.solve();
-            std::cout << "solved:" << b << std::endl;
-            auto model = s.get_model();
-
-            for(auto l : model){
-                std::cout << l << " ";
-            }
-            std::cout << std::endl;
-
-        }
+    bool verbose = false;
+    if(vm.count("verbose")){
+        verbose = true;
     }
 
+    std::string output_file = "";
+    if(vm.count("dump-to-file")){
+        output_file = vm["dump-to-file"].as<std::string>();
+    }
 
-    
+    if (vm.count("input-file")){
+        for(auto fn : vm["input-file"].as<std::vector<std::string>>()){
+            Benchmark_reader br(fn);
+            Conjunction_clause cnf = br.get_formula();
 
-    
+            // Create solver object
+            Solver s(cnf, verbose);
 
-    // Assign SAT problem to the solver
-
-    // Call solver.solve()
-
-    // Output the result
+            bool b = s.solve();
+            std::cout << "Benchmark " << fn << ":" << (b ? "SAT" : "UNSAT") << std::endl;
+            if(b){
+                std::vector<Literal> model = s.get_model();
+                if(output_file != ""){
+                    std::ofstream ofs(output_file, std::ios::app);
+                    dump_result(ofs, model);
+                }
+                else{
+                    dump_result(std::cout, model);
+                }
+            }
+        }
+    }
     return 0;
 
 }

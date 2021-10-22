@@ -40,7 +40,7 @@ public:
     }
 
     static Disjunction_clause resolve(Disjunction_clause dc1, Disjunction_clause dc2, Variable v);
-    static std::pair<Literal, Disjunction_clause> propagate_clause(Disjunction_clause dc, std::vector<std::pair<Literal, Disjunction_clause>> assignment);
+    static Literal propagate_clause(Disjunction_clause dc, std::vector<std::pair<Literal, Disjunction_clause>> assignment);
 
 
 private:

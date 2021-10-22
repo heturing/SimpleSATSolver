@@ -269,7 +269,7 @@ Implication_graph Implication_graph::get_partial_implication_graph(size_t decisi
             q.push(*cn);
             auto cl = get_clause_of_edge(p, *cn);
             auto new_children_node = copy_node(**cn);
-            std::cout << "Add edge from " << *p << " to " << new_children_node << std::endl;
+            // std::cout << "Add edge from " << *p << " to " << new_children_node << std::endl;
             ig.add_edge(*p, new_children_node, cl);
         }   
    }
@@ -284,7 +284,7 @@ Node Implication_graph::get_first_UIP(size_t decision_level){
     std::map<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>> dominator_map;
     dominator_map.insert({pig.root, std::vector<std::shared_ptr<Node>>{pig.root}});
 
-    std::cout << "partial implication graph get:\n" << pig << std::endl;
+    // std::cout << "partial implication graph get:\n" << pig << std::endl;
     // std::cout << pig.conflict->get_parent_number() << " parents node for conflict in pig" << std::endl;
 
 

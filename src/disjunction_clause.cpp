@@ -1,4 +1,5 @@
 #include "disjunction_clause.h"
+#include "solver_exception.h"
 #include <algorithm>
 
 std::ostream& operator<<(std::ostream &os, const Disjunction_clause &dc){
@@ -12,30 +13,37 @@ std::ostream& operator<<(std::ostream &os, const Disjunction_clause &dc){
     return os;
 }
 
-std::pair<Literal, Disjunction_clause> Disjunction_clause::propagate_clause(Disjunction_clause dc, std::vector<std::pair<Literal, Disjunction_clause>> assignment){
-    auto l = dc.literals;
+Literal Disjunction_clause::propagate_clause(Disjunction_clause dc, std::vector<std::pair<Literal, Disjunction_clause>> assignment){
+    /*
+    Propagate literals for a disjunction clause based on the current assignment.
+    Return the propagated literal.
+    */
+    
+    std::vector<Literal> literals_in_clause = dc.literals;
     for(auto dec : assignment){
-        // search for !var
-        auto lit = dec.first;
-        std::vector<Literal>::iterator iter = std::find(l.begin(), l.end(), !lit);
-        if(iter != l.end()){
-            l.erase(iter);
+        Literal lit = dec.first;
+        std::vector<Literal>::iterator iter = std::find(literals_in_clause.begin(), literals_in_clause.end(), !lit);
+        if(iter != literals_in_clause.end()){
+            // if !lit is in clause, the rest lits must have at least one true to make the problem satisfiable.
+            literals_in_clause.erase(iter);
         }
 
-        iter = std::find(l.begin(), l.end(), lit);
-        if(iter != l.end()){
-            // dc is evaluated to true.
-            throw std::runtime_error("This clause is evaluated to true.");
+        iter = std::find(literals_in_clause.begin(), literals_in_clause.end(), lit);
+        if(iter != literals_in_clause.end()){
+            //if lit is in clause, we cannot propagate from this clause.
+            throw TrueClauseException("This clause is evaluated to true.");
         }
     }
-    if(l.size() == 1){
-        return std::pair<Literal, Disjunction_clause>{l.back(), dc};
+
+    if(literals_in_clause.size() == 1){
+        return literals_in_clause.back();
     }
-    throw std::runtime_error("Cannot propagate anymore.");
+    // more than 1 unassigned lit in this clause, cannot propagate.
+    throw NoLiteralToPropagateException("Cannot propagate anymore.");
 }
 
 Disjunction_clause Disjunction_clause::resolve(Disjunction_clause dc1, Disjunction_clause dc2, Variable v){
-    std::cout << "Try to resolve " << dc1 << " and " << dc2 << " on variable " << v << std::endl;
+    // std::cout << "Try to resolve " << dc1 << " and " << dc2 << " on variable " << v << std::endl;
     
     Disjunction_clause dc;
     for(auto lit : dc1.get_literals()){
