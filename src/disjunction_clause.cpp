@@ -35,11 +35,17 @@ Literal Disjunction_clause::propagate_clause(Disjunction_clause dc, std::vector<
         }
     }
 
-    if(literals_in_clause.size() == 1){
+    if(literals_in_clause.size() == 0){
+        throw ConflictClauseException("Propagation leads to Conflict.");
+    }
+    else if(literals_in_clause.size() == 1){
         return literals_in_clause.back();
     }
-    // more than 1 unassigned lit in this clause, cannot propagate.
-    throw NoLiteralToPropagateException("Cannot propagate anymore.");
+    else{
+        // more than 1 unassigned lit in this clause, cannot propagate.
+        throw NoLiteralToPropagateException("Cannot propagate anymore.");
+    }
+
 }
 
 Disjunction_clause Disjunction_clause::resolve(Disjunction_clause dc1, Disjunction_clause dc2, Variable v){

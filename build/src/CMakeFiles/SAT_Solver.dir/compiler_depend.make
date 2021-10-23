@@ -1948,8 +1948,7 @@ src/CMakeFiles/SAT_Solver.dir/main.cpp.o: ../src/main.cpp \
   ../src/node.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/unordered_set \
   /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/__hash_table \
-  /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/unordered_map \
-  ../src/debug.h
+  /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/unordered_map
 
 src/CMakeFiles/SAT_Solver.dir/node.cpp.o: ../src/node.cpp \
   ../src/node.h \
@@ -2438,7 +2437,8 @@ src/CMakeFiles/SAT_Solver.dir/solver.cpp.o: ../src/solver.cpp \
   /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/unordered_map \
   /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/set \
   ../src/heuristic.h \
-  ../src/solver_exception.h
+  ../src/solver_exception.h \
+  ../src/debug.h
 
 src/CMakeFiles/SAT_Solver.dir/variable.cpp.o: ../src/variable.cpp \
   ../src/variable.h \
@@ -2670,9 +2670,9 @@ src/CMakeFiles/SAT_Solver.dir/variable.cpp.o: ../src/variable.cpp \
   /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/__split_buffer
 
 
-../src/heuristic.h:
-
 ../src/debug.h:
+
+../src/heuristic.h:
 
 ../src/solver.h:
 

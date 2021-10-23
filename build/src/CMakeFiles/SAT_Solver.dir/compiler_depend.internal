@@ -1955,7 +1955,6 @@ src/CMakeFiles/SAT_Solver.dir/main.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/unordered_set
  /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/__hash_table
  /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/unordered_map
- /Users/jiaqihe/Documents/programming_language/c++/decision_procedure/SAT_solver/src/debug.h
 
 src/CMakeFiles/SAT_Solver.dir/node.cpp.o
  /Users/jiaqihe/Documents/programming_language/c++/decision_procedure/SAT_solver/src/node.cpp
@@ -2447,6 +2446,7 @@ src/CMakeFiles/SAT_Solver.dir/solver.cpp.o
  /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/c++/v1/set
  /Users/jiaqihe/Documents/programming_language/c++/decision_procedure/SAT_solver/src/heuristic.h
  /Users/jiaqihe/Documents/programming_language/c++/decision_procedure/SAT_solver/src/solver_exception.h
+ /Users/jiaqihe/Documents/programming_language/c++/decision_procedure/SAT_solver/src/debug.h
 
 src/CMakeFiles/SAT_Solver.dir/variable.cpp.o
  /Users/jiaqihe/Documents/programming_language/c++/decision_procedure/SAT_solver/src/variable.cpp

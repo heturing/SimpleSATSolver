@@ -208,10 +208,19 @@ Disjunction_clause Implication_graph::get_current_conflict_clause(){
     return cl;
 }
 
+size_t Implication_graph::get_decision_level_of_literal(const Literal &l){
+    for(auto node_ptr : all_nodes){
+        if(node_ptr->get_literal().get_variable() == l.get_variable()){
+            return node_ptr->decision_level;
+        }
+    }
+    throw std::runtime_error("No node corresponds to literal " + std::string(l));
+}
+
+
 size_t Implication_graph::find_decision_level_of_variable(const Variable &v){
     for(auto node_ptr : all_nodes){
         if(node_ptr->get_literal().get_variable() == v){
-            // std::cout << "decision level for " << v << " is " << node_ptr->decision_level << std::endl;
             return node_ptr->decision_level;
         }
     }

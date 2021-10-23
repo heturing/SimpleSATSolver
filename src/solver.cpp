@@ -2,15 +2,17 @@
 #include "disjunction_clause.h"
 #include "heuristic.h"
 #include "solver_exception.h"
+#include "debug.h"
 
-Solver::Solver(Conjunction_clause c, bool v) : clause(c), unassigned_variables(c.get_variables_in_clause()), decision_level(0), verbose(v) {
-    // Collect all variables in c, put these variables in unassigned_variables.
-}
+Solver::Solver(Conjunction_clause c, bool v) : clause(c), unassigned_variables(c.get_variables_in_clause()), decision_level(0), verbose(v) {}
 
 void Solver::backtrack(int backtrack_level){
+    /*
+    Backtrack to a decision level. Update assignment, unassigned_variables, and implication_graph. Reset decision_level.
+    */
     auto erased_nodes = ig.backtrack(backtrack_level);
 
-    // backtrack assignment
+    // backtrack assignment and unassigned_variables
     for(auto n : erased_nodes){
         auto lit = n->get_literal();
         auto iter = std::find_if(assignment.begin(), assignment.end(), [lit](const std::pair<Literal, Disjunction_clause> &p) -> bool {return p.first == lit;});
@@ -23,7 +25,6 @@ void Solver::backtrack(int backtrack_level){
     }
     decision_level = backtrack_level;
 }
-
 
 bool Solver::solve(){
     /*
@@ -47,138 +48,144 @@ bool Solver::solve(){
     }
 }
 
-bool Solver::check_conflict(){
-    Disjunction_clause con_cl;
-    for(auto cl : clause.get_clauses()){
-        bool flag = true;
-        for(auto lit : cl.get_literals()){
-            // conflict if all !lit in assignment.
-            auto neg_lit = !lit;
-            auto iter = std::find_if(assignment.begin(), assignment.end(), [neg_lit](std::pair<Literal, Disjunction_clause> p) -> bool {return p.first == neg_lit;});
-            if(iter == assignment.end()){
-                flag = false;
-            }
-            con_cl = cl;
+void Solver::update_implication_graph_if_conflict(const Disjunction_clause &dc){
+    /*
+    Add conflict edges from each node for literals in dc to conflict node.
+    */
+    for(auto lit : dc.get_literals()){
+        Node n(Literal(), decision_level);
+        try{
+            n = ig.get_node_from_literal(lit);
         }
-        if(flag){
-            // std::cout << "Conflict on:" << cl << std::endl; 
-            // for each lit node in cl, add conflict edge from node to conflict.
-            // ig.add_conflict_edge(ig.get_node_from_literal())
-            for(auto lit : cl.get_literals()){
-                Node n(Literal(), decision_level);
-                try{
-                    n = ig.get_node_from_literal(lit);
-                }
-                catch(const std::runtime_error &e){
-                    n = ig.get_node_from_literal(!lit);
-                }
-                ig.add_conflict_edge(n, cl);
-            }
-            return true;
+        catch(const std::runtime_error &e){
+            n = ig.get_node_from_literal(!lit);
+        }
+        ig.add_conflict_edge(n, dc);
+    }
+}
+
+void Solver::trace_new_assignment(const Literal &l, const Disjunction_clause &dc){
+    /*
+    Update assignment and unassigned_variables when new literal is assigned.
+    */
+    assignment.push_back({l, dc});
+    for(auto iter = unassigned_variables.begin(); iter != unassigned_variables.end(); ++iter){
+        if(*iter == l.get_variable()){
+            unassigned_variables.erase(iter);
+            break;
         }
     }
-    return false;
+}
+
+void Solver::update_implication_graph_with_new_propagation(const Literal &l, const Disjunction_clause &dc){
+    /*
+    Construct new node and add new edges when new literal is assigned.
+    Specifically, for clause (a,b,c) => a, add edge !b => a and !c => a with label (a,b,c)
+    */
+    
+    for(auto lit : dc.get_literals()){
+        if(lit != l){
+            Node head = ig.get_node_from_literal(!lit);
+            Node tail = Node(l, decision_level);
+            ig.add_edge(head, tail, dc);
+        }
+        if(decision_level == 0){
+            ig.add_edge(*(ig.root), Node(l, decision_level), dc);
+        }
+    }
+}
+
+std::vector<Disjunction_clause> Solver::get_all_clauses(){
+    /*
+    Return the sum of original clauses and the learned clauses.
+    Make sure the learned clauses are consider first.
+    */
+
+    std::vector<Disjunction_clause> all_clauses = clause.get_clauses();
+    all_clauses.insert(all_clauses.begin(), learned_clauses.begin(), learned_clauses.end());
+    return all_clauses;
+}
+
+void Solver::record_a_propagation(const Literal &propagated_literal, const Disjunction_clause &by_clause){
+    /*
+    update the underlying assignment, unassigned_variables, and implication_graph if new literal is propagated.
+    */
+    trace_new_assignment(propagated_literal, by_clause);
+    update_implication_graph_with_new_propagation(propagated_literal, by_clause);
 }
 
 bool Solver::boolean_constraint_propagation(){
     /*
-    Propagate literals from each DNF in the given CNF based on current assignment.
-
+    Propagate literals from each DNF in the given CNF based on current assignment. If the propagation leads to a conflict,
+    return true. Otherwise return false.
     */
     bool new_literal_propagated;
     do{
         new_literal_propagated = false;
 
-        auto all_clauses = learned_clauses;
-        auto original_clauses = clause.get_clauses();
-        all_clauses.insert(all_clauses.end(), original_clauses.begin(), original_clauses.end());
-
+        std::vector<Disjunction_clause> all_clauses = get_all_clauses();
         for(auto clause : all_clauses){
             Literal propagated_literal;
             try{
                 propagated_literal = Disjunction_clause::propagate_clause(clause, assignment);
             }
+            catch(const ConflictClauseException &e){
+                // conflict found on clause.
+                update_implication_graph_if_conflict(clause);
+                this->current_conflict_clause = clause;
+                return true;
+            }
             catch(const PropagationException &e){
                 continue;
             }
+
             new_literal_propagated = true;
-
-            // todo : refactor 107 - 115 to a new function, assign_a_literal(Literal, Disjunction_clause)
-            assignment.push_back({propagated_literal, clause});
-
-            // remove literal from unassigned_vars
-            for(auto iter = unassigned_variables.begin(); iter != unassigned_variables.end(); ++iter){
-                if(*iter == propagated_literal.get_variable()){
-                    unassigned_variables.erase(iter);
-                    break;
-                }
-            }
-
-            // todo : update implication_graph. new function.
-            // for clause (a,b,c) => a, add edge !b => a and !c => a with label (a,b,c)
-            for(auto lit : clause.get_literals()){
-                if(lit != propagated_literal){
-                    Node head = ig.get_node_from_literal(!lit);
-                    Node tail = Node(propagated_literal, decision_level);
-                    ig.add_edge(head, tail, clause);
-                }
-                if(decision_level == 0){
-                    ig.add_edge(*(ig.root), Node(propagated_literal, decision_level), clause);
-                }
-            }
-            
-            if(check_conflict()){
-                return true;
-            }
+            record_a_propagation(propagated_literal, clause); 
         }
     }while(new_literal_propagated);
 
-
-    // return true if there is no conflict, else return false.
     return false;
 }
 
 Node Solver::get_first_UIP(size_t decision_level){
+    /*
+    Return the node for first UIP for current implication graph.
+    */
     return ig.get_first_UIP(decision_level);
 }
 
 bool Solver::stop_criterion_met(Disjunction_clause &cl, const Node &uip){
     /*
     Return true iff cl contains the negation of the first UIP as its single literal at the current decision level.
+    Assumption: All literals in cl have been assigned.
     */
 
-    // std::cout << "Testing if clause met stop criterion:" << cl << std::endl;
-
     size_t decision_level_of_UIP = uip.get_decision_level();
-    std::vector<Literal> vl;
-    std::vector<Node> vn;
 
     // Count how many literals in cl has the same decision level as n.
     size_t count = 0;
-    for(auto l : cl.get_literals()){
-        if(ig.find_decision_level_of_variable(l.get_variable()) == decision_level_of_UIP){
+    auto literals_in_clause = cl.get_literals();
+    for(auto l : literals_in_clause){
+        if(ig.get_decision_level_of_literal(l) == decision_level_of_UIP){
             ++count;
         }
     }
-    // std::cout << count << " lietrals in " << decision_level_of_UIP << std::endl;
     if(count != 1){
         return false;
     }
 
-    auto iter = std::find(cl.get_literals().begin(), cl.get_literals().end(), !(uip.get_literal()));
-    if(iter != cl.get_literals().end()){
+    // check if the the negation of the literal of uip is in cl.
+    auto iter = std::find(literals_in_clause.begin(), literals_in_clause.end(), !(uip.get_literal()));
+    if(iter != literals_in_clause.end()){
         return true;
     }
     return false;
 }
 
 Literal Solver::get_last_assigned_literal(Disjunction_clause dc){
-    // std::cout << "Trying to get last assignment literal of " << dc << std::endl;
-    // std::cout << "Current assignment:" << std::endl;
-    // for(auto p : assignment){
-    //     std::cout << p.first << std::endl;
-    // }
-
+    /*
+    Return the literal that is the latest assigned in dc.
+    */
     auto literals = dc.get_literals();
     for(auto iter = assignment.rbegin(); iter != assignment.rend(); ++iter){
         // if iter->first in dc.literals
@@ -192,11 +199,9 @@ Literal Solver::get_last_assigned_literal(Disjunction_clause dc){
 
 Disjunction_clause Solver::get_antecedent_clause(Literal l){
     /*
-    when new literal is assigned, we also keep track the clause that leads to this assignment. (for decision node, we put an
-    empty clause).
+    Return the clause that implies the assignmend of l. For decision node, we return an empty clause.
     */
-//    std::cout << "Find antecedent clause for " << l << std::endl;
-   auto iter = std::find_if(assignment.begin(), assignment.end(), [l](std::pair<Literal, Disjunction_clause> p) -> bool {return p.first.get_variable() == l.get_variable();});
+   auto iter = std::find_if(assignment.begin(), assignment.end(), [l](std::pair<Literal, Disjunction_clause> p)-> bool {return p.first == l;});
    if(iter != assignment.end()){
        return iter->second;
    }
@@ -204,14 +209,20 @@ Disjunction_clause Solver::get_antecedent_clause(Literal l){
 }
 
 void Solver::add_learned_clause(Disjunction_clause dc){
+    /*
+    Store learned clause.
+    */
     learned_clauses.push_back(dc);
 }
 
-int Solver::get_backtrack_level(Disjunction_clause dc){
+int Solver::get_backtrack_level(const Disjunction_clause &dc){
+    /*
+    Return the second largest decision level among literals in dc.
+    */
     std::vector<int> v;
     auto literals = dc.get_literals();
     for(auto lit : literals){
-        int dl = ig.find_decision_level_of_variable(lit.get_variable());
+        int dl = ig.get_decision_level_of_literal(lit);
         v.push_back(dl);
     }
 
@@ -231,40 +242,25 @@ int Solver::get_backtrack_level(Disjunction_clause dc){
 int Solver::analyze_conflict(){
     /*
     Return the decision level that we should backtrack to.
+    Assumption: current assignment leads to a conflict.
     */
-
-    // std::cout << "Analyzing conflict on graph:\n" << ig << std::endl;
 
     if(decision_level == 0){
         return -1;
     }
-    Disjunction_clause current_conflict_clause = ig.get_current_conflict_clause();
 
-    // std::cout << "Current conflict clause is:" << current_conflict_clause << std::endl;
-    
     Node uip = get_first_UIP(decision_level);
-    // std::cout << "First UIP is:" << uip << std::endl;
 
-    while(!stop_criterion_met(current_conflict_clause, uip)){
-
-        Literal l = get_last_assigned_literal(current_conflict_clause);
-        // std::cout << "Last assigned literal is:" << l << std::endl;
-
-
+    while(!stop_criterion_met(this->current_conflict_clause, uip)){
+        Literal l = get_last_assigned_literal(this->current_conflict_clause);
         Variable v = l.get_variable();
-        Disjunction_clause antecedent = get_antecedent_clause(l);
-        // std::cout << "Antecedent clause is: " << antecedent << std::endl; 
-        current_conflict_clause = Disjunction_clause::resolve(current_conflict_clause, antecedent, v);
-        // std::cout << "New learned clause is: " << current_conflict_clause << std::endl; 
-
+        // since assigning l leads to conflict, not l must has been assigned before.
+        Disjunction_clause antecedent = get_antecedent_clause(!l);
+        this->current_conflict_clause = Disjunction_clause::resolve(this->current_conflict_clause, antecedent, v);
     }
 
-    // std::cout << "stop criterion met"<< std::endl;
-
-    add_learned_clause(current_conflict_clause);
-    int dl = get_backtrack_level(current_conflict_clause);
-    // std::cout << "return to decision level " << dl << std::endl;
-
+    add_learned_clause(this->current_conflict_clause);
+    int dl = get_backtrack_level(this->current_conflict_clause);
     return dl;
 }
 
@@ -280,30 +276,21 @@ bool Solver::decide(){
 
     Heuristic h;
     Literal variable_chosen_by_heuristic = h.choose_decide_literal(unassigned_variables);
-    // std::cout << "Decide on literal:" << variable_chosen_by_heuristic << std::endl;
 
-    // decide a variable
-    // 1. put the literal into assignment
-    // 2. remove the variable from unassiged_variable
-    // 3. update implication_graph
-    assignment.push_back({variable_chosen_by_heuristic, Disjunction_clause()});
-    
-    for(auto iter = unassigned_variables.begin(); iter != unassigned_variables.end(); ++iter){
-        if(*iter == variable_chosen_by_heuristic.get_variable()){
-            unassigned_variables.erase(iter);
-            break;
-        }
-    }
-
+    // record new dicision.
+    trace_new_assignment(variable_chosen_by_heuristic, Disjunction_clause());
     ig.add_decision_node(variable_chosen_by_heuristic, ++decision_level);
+
     return true;
 }
 
 std::vector<Literal> Solver::get_model(){
+    /*
+    Return the literals for current assignment.
+    */
     std::vector<Literal> v;
     for(auto p : assignment){
         v.push_back(p.first);
     }
-
     return v;
 }

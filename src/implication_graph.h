@@ -23,6 +23,7 @@ public:
     void remove_edge(const Node &head, const Node &tail);
     std::vector<std::shared_ptr<Node>> backtrack(int dl);
     bool is_conflict();
+    // todo: considering remove.
     Disjunction_clause get_current_conflict_clause();
     size_t find_decision_level_of_variable(const Variable &l);
     Node get_first_UIP(size_t decision_level);
@@ -31,6 +32,8 @@ public:
 
     
 private:
+    size_t get_decision_level_of_literal(const Literal &l);
+
     std::unordered_set<std::shared_ptr<Node>, PtrToNodeHash, PtrToNodeCompare> all_nodes;
     std::unordered_multimap<std::shared_ptr<Node>, std::pair<std::shared_ptr<Node>, Disjunction_clause>, PtrToNodeHash, PtrToNodeCompare> all_edges;
     std::shared_ptr<Node> root, conflict;

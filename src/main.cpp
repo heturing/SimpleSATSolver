@@ -10,7 +10,7 @@
 #include "benchmark_reader.h"
 #include "conjunction_clause.h"
 #include "solver.h"
-#include "debug.h"
+
 
 namespace po = boost::program_options;
 
