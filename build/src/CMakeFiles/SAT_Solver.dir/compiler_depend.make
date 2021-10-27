@@ -1937,6 +1937,7 @@ src/CMakeFiles/SAT_Solver.dir/main.cpp.o: ../src/main.cpp \
   /usr/local/include/boost/program_options/detail/convert.hpp \
   /usr/local/include/boost/program_options/variables_map.hpp \
   /usr/local/include/boost/program_options/version.hpp \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/signal.h \
   ../src/version.h \
   ../src/benchmark_reader.h \
   ../src/conjunction_clause.h \
@@ -2677,6 +2678,8 @@ src/CMakeFiles/SAT_Solver.dir/variable.cpp.o: ../src/variable.cpp \
 ../src/solver.h:
 
 ../src/version.h:
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX11.3.sdk/usr/include/signal.h:
 
 /usr/local/include/boost/program_options/detail/parsers.hpp:
 

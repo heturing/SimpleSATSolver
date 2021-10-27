@@ -5,6 +5,7 @@
 #include <iterator>
 #include <algorithm>
 #include <boost/program_options.hpp>
+#include "signal.h"
 
 #include "version.h"
 #include "benchmark_reader.h"
@@ -13,6 +14,11 @@
 
 
 namespace po = boost::program_options;
+
+template<typename T> std::ostream& operator<<(std::ostream &os, const std::vector<T> &v){  
+    std::copy(v.begin(), v.end(), std::ostream_iterator<T>(os, " "));
+    return os;
+}
 
 std::pair<po::variables_map, po::options_description> parse_argument(int argc, char* argv[]){
     /*
@@ -54,11 +60,30 @@ std::pair<po::variables_map, po::options_description> parse_argument(int argc, c
    return std::pair<po::variables_map, po::options_description>(vm, generic);
 }
 
+
 void dump_result(std::ostream &is, std::vector<Literal> model){
+    /*
+    dump the result to stream.
+    */
     is << model << std::endl;
 }
 
+void interrupt_handler(int s){
+    /*
+    function to perform when receiving SIGINT.
+    */
+    std::cerr << "UNSAT" << std::endl;
+    exit(1);
+}
+
 int main(int argc, char** argv){
+
+    // set up signal catch
+    struct sigaction sigInt_handler;
+    sigInt_handler.sa_handler = interrupt_handler;
+    sigemptyset(&sigInt_handler.sa_mask);
+    sigInt_handler.sa_flags = 0;
+    sigaction(SIGINT, &sigInt_handler, nullptr);
 
     // Parse arguments
     auto p = parse_argument(argc, argv);
@@ -96,7 +121,7 @@ int main(int argc, char** argv){
             Solver s(cnf, verbose);
 
             bool b = s.solve();
-            std::cout << "Benchmark " << fn << ":" << (b ? "SAT" : "UNSAT") << std::endl;
+            std::cout << "Benchmark " << fn << ": " << (b ? "SAT" : "UNSAT") << std::endl;
             if(b){
                 std::vector<Literal> model = s.get_model();
                 if(output_file != ""){

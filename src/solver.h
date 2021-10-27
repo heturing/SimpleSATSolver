@@ -34,7 +34,6 @@ private:
     void add_learned_clause(Disjunction_clause dc);
     int get_backtrack_level(const Disjunction_clause &dc);
     bool decide();
-
     void backtrack(int backtrack_level);
 
 

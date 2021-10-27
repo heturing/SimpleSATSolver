@@ -12,7 +12,7 @@ class Disjunction_clause{
 friend std::ostream& operator<<(std::ostream &os, const Disjunction_clause &dc);
 friend class ClauseHash;
 public:
-    Disjunction_clause(std::vector<Literal> v = std::vector<Literal>()) : literals(v) {}
+    explicit Disjunction_clause(std::vector<Literal> v = std::vector<Literal>()) : literals(v) {}
 
     std::vector<Literal> get_literals(){
         return this->literals;
