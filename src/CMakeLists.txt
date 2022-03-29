@@ -1,5 +1,6 @@
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_FLAGS "-O3 -Wall")
 
 find_package(Boost QUIET COMPONENTS program_options REQUIRED)
 

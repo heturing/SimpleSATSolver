@@ -4,6 +4,8 @@
 #include "solver_exception.h"
 #include "debug.h"
 
+#include <algorithm>
+
 Solver::Solver(Conjunction_clause c, bool v) : clause(c), unassigned_variables(c.get_variables_in_clause()), decision_level(0), verbose(v) {}
 
 void Solver::backtrack(int backtrack_level){
@@ -102,7 +104,8 @@ std::vector<Disjunction_clause> Solver::get_all_clauses(){
     */
 
     std::vector<Disjunction_clause> all_clauses = clause.get_clauses();
-    all_clauses.insert(all_clauses.begin(), learned_clauses.begin(), learned_clauses.end());
+    all_clauses.insert(all_clauses.end(), learned_clauses.begin(), learned_clauses.end());
+    std::reverse(all_clauses.begin(), all_clauses.end());
     return all_clauses;
 }
 

@@ -11,7 +11,7 @@ public:
 
     bool operator==(const Literal &l) const {return variable == l.variable && value == l.value;}
     bool operator!=(const Literal &l) const {return !(*this == l);}
-    Literal operator!() {return Literal(variable, !value);}
+    Literal operator!() const {return Literal(variable, !value);}
     operator std::string() const;
 
     Variable get_variable() const {return variable;}
